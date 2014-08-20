@@ -1,0 +1,8 @@
+Harvest.xcworkspace
+DerivedData
+Harvest.xcodeproj/xcuserdata
+Harvest.xcodeproj/project.xcworkspace/xcuserdata
+.rvmrc
+Pods
+.DS_Store
+Podfile.lock
