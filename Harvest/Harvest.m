@@ -9,6 +9,17 @@
 #import "Harvest.h"
 
 #define HARVEST_COOKIE @"harvestcookie"
+#define HARVEST_ACTION_PATH @"/actions"
+
+@interface Harvest()
+
+-(void) enqueue: (NSArray *) action;
+-(void) sendData: (NSArray *) actions;
+-(void) processQueue;
+
+@property (strong, nonatomic) NSMutableArray *queue;
+
+@end
 
 @implementation Harvest
 
@@ -42,10 +53,7 @@
 }
 
 +(NSString *) generateUUID {
-    CFUUIDRef theUUID = CFUUIDCreate(NULL);
-    CFStringRef string = CFUUIDCreateString(NULL, theUUID);
-    CFRelease(theUUID);
-    return (__bridge NSString *)string;
+    return [[NSUUID UUID] UUIDString];
 }
 
 // static methods
@@ -55,14 +63,12 @@
     self = [super init];
     
     if(self){
-        self.includeData = @{};
+        _includeData = @{};
+        _dispatchQueue = dispatch_queue_create("harvestqueue", NULL);
+        _queue = [[NSMutableArray alloc] init];
     }
     
     _pretrack = ^void (NSString * eventName, NSDictionary *data, void(^cb)(NSString *, NSDictionary *)){
-        NSLog(@"callback dude");
-        NSLog(@"%@", eventName);
-        NSLog(@"%@", data);
-        
         cb(eventName, data);
     };
     
@@ -77,20 +83,15 @@
     _hostname = host;
 }
 
--(NSNumber *) getTimestamp {
-    return [[NSNumber alloc] initWithInt: (int)[[[NSDate alloc] init] timeIntervalSince1970]];
-}
 
 -(NSDictionary *) getUserCookie {
     NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
     NSDictionary *cookie = (NSDictionary *)[userDefaults objectForKey:@"harvestcookie"];
     
-    NSLog(@"DEFAULTS\n: %@", cookie);
     if(!cookie){
         cookie = [self generateCookieData];
         [self setUserCookie:cookie];
     }
-    NSLog(@"COOKIE\n: %@", cookie);
     return cookie;
 }
 
@@ -101,7 +102,6 @@
     }
     
     cookie = [[NSMutableDictionary alloc] initWithDictionary:cookie];
-    [cookie setValue:[self getTimestamp] forKeyPath:@"lastSeen"];
     
     NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
     [userDefaults setObject:cookie forKey:HARVEST_COOKIE];
@@ -110,14 +110,12 @@
 
 -(NSDictionary *) generateCookieData {
     NSDictionary *cookie = @{
-                                @"$uuid": [Harvest generateUUID],
-                                @"lastSeen": [self getTimestamp]
+                                @"$uuid": [Harvest generateUUID]
                             };
     return cookie;
 }
 
 -(void) track: (NSString *)event withData:(NSDictionary *) data {
-    NSLog(@"track event");
     NSMutableDictionary *compiledData = [[NSMutableDictionary alloc] init];
     
     // merge in the include always data
@@ -136,33 +134,86 @@
                                     @"osVersion": [[UIDevice currentDevice] systemVersion],
                                     @"device": [[UIDevice currentDevice] model]
                                  };
+    
     [compiledData setObject: deviceData forKey:@"device"];
-    NSLog(@"%@", compiledData);
     
     _pretrack(event, compiledData, ^void(NSString *eventName, NSDictionary *data){
-        NSLog(@"after pre track");
         
         NSMutableDictionary *compiledData = [[NSMutableDictionary alloc] initWithDictionary:data];
 
         [compiledData addEntriesFromDictionary:[self getUserCookie]];
         
-        NSLog(@"%@", compiledData);
-        NSLog(@"%@", data);
+        [self enqueue:@[@"track", @{
+                            @"event": event,
+                            @"data": compiledData,
+                            @"token": _apiToken
+                        }]];
     });
 }
 
--(void) identify:(NSString *)idToReplace {
+-(void) identify:(NSString *) idToReplace {
     NSLog(@"identify user");
+    
+    if(!idToReplace || [idToReplace length] == 0){
+        NSLog(@"please provide an id");
+        return;
+    }
+    
+    NSDictionary *cookie = [self getUserCookie];
+    NSDictionary *payload = @{
+                                @"token": _apiToken,
+                                @"uuid": [cookie objectForKey:@"$uuid"],
+                                @"userId": idToReplace
+                              };
+    NSLog(@"payload:\n%@", payload);
+    [self enqueue:@[@"identify", payload]];
 }
 
 -(void) alwaysInclude:(NSDictionary *)data {
     _includeData = [[NSDictionary alloc] initWithDictionary:data];
 }
 
-// private methods
-
--(void) enqueue:(NSArray *)operation {
+// private
+-(void) enqueue: (NSArray *) action {
+    [_queue addObject:action];
     
+    [self processQueue];
+}
+
+-(void) processQueue {
+    dispatch_async(_dispatchQueue, ^{
+        if([[self queue] count] > 0){
+            // sleep for 200ms to allow the queue to fill up
+            [NSThread sleepForTimeInterval:0.2];
+        
+            NSArray *sendActions = [[NSArray alloc] initWithArray:[[self queue] copy]];
+        
+            _queue = @[];
+            
+            [self sendData:sendActions];
+        }
+    });
+}
+
+-(void) sendData:(NSArray *)actions {
+    if(!_hostname || [_hostname length] == 0){
+        NSLog(@"Missing hostname");
+        return;
+    }
+    
+    AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
+    manager.requestSerializer = [AFJSONRequestSerializer serializer];
+    manager.responseSerializer = [AFJSONResponseSerializer serializer];
+    
+    NSString *path = [NSString stringWithFormat:@"%@%@", [self hostname], HARVEST_ACTION_PATH];
+    
+    NSDictionary *jsonData = @{@"actions": actions};
+    
+    [manager POST:path parameters:jsonData success:^(AFHTTPRequestOperation *operation, id responseObject) {
+        NSLog(@"JSON: %@", responseObject);
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+        NSLog(@"Error: %@", error);
+    }];
 }
 
 @end

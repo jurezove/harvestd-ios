@@ -17,6 +17,7 @@ typedef void (^PreTrackBlock)(NSString *, NSDictionary *, void(^cb)(NSString *, 
 @property (strong, nonatomic) NSDictionary *includeData;
 @property (strong, nonatomic) NSString *hostname;
 @property (strong, nonatomic) PreTrackBlock pretrack;
+@property (strong, nonatomic) dispatch_queue_t dispatchQueue;
 
 
 // static methods
