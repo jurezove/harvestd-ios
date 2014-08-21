@@ -181,6 +181,7 @@
 
 // private
 -(void) enqueue: (NSArray *) action {
+
     [_queue addObject:action];
     
     [self processQueue];
@@ -194,7 +195,7 @@
         
             NSArray *sendActions = [[NSArray alloc] initWithArray:[[self queue] copy]];
         
-            _queue = @[];
+            _queue = [[NSMutableArray alloc] init];
             
             [self sendData:sendActions];
         }
