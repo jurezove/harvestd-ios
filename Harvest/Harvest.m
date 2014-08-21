@@ -160,7 +160,6 @@
 }
 
 -(void) identify:(NSString *) idToReplace {
-    NSLog(@"identify user");
     
     if(!idToReplace || [idToReplace length] == 0){
         NSLog(@"please provide an id");
@@ -173,7 +172,6 @@
                                 @"uuid": [cookie objectForKey:@"$uuid"],
                                 @"userId": idToReplace
                               };
-    NSLog(@"payload:\n%@", payload);
     [self enqueue:@[@"identify", payload]];
 }
 
