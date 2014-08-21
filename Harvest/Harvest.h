@@ -27,6 +27,7 @@ typedef void (^PreTrackBlock)(NSString *, NSDictionary *, void(^cb)(NSString *, 
 +(void) identifyUser: (NSString *) idToReplace;
 +(void) setApiToken:(NSString *) apiToken andHostname: (NSString *) hostname;
 +(void) includeData: (NSDictionary *) data;
++(void) setPretrackHandler: (PreTrackBlock) preTrack;
 +(NSString *) generateUUID;
 
 
@@ -34,7 +35,7 @@ typedef void (^PreTrackBlock)(NSString *, NSDictionary *, void(^cb)(NSString *, 
 -(void) track: (NSString *)event withData:(NSDictionary *) data;
 -(void) identify:(NSString *) idToReplace;
 -(void) alwaysInclude: (NSDictionary *) data;
--(void) setPretrackBlock: (id) block;
+-(void) setPretrackBlock: (PreTrackBlock) block;
 
 -(void) setUserCookie: (NSDictionary *) data;
 -(NSDictionary *) getUserCookie;

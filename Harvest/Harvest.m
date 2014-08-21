@@ -52,6 +52,10 @@
     [[Harvest sharedManager] alwaysInclude:data];
 }
 
++(void) setPretrackHandler: (PreTrackBlock) preTrack {
+    [[Harvest sharedManager] setPretrack:preTrack];
+}
+
 +(NSString *) generateUUID {
     return [[NSUUID UUID] UUIDString];
 }
@@ -81,6 +85,10 @@
 
 -(void) setHostname:(NSString *)host {
     _hostname = host;
+}
+
+-(void) setPretrack:(PreTrackBlock)pretrack {
+    _pretrack = pretrack;
 }
 
 
