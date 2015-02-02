@@ -10,6 +10,6 @@ Pod::Spec.new do |s|
   s.exclude_files = "Classes/Exclude"
   s.ios.deployment_target = '6.0'
   s.requires_arc = true
-  s.dependency "AFNetworking", "2.3.1"
+  s.dependency "AFNetworking", "2.5.0"
 
 end
